@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>蔚蓝档案转生工具</title>
+    <style>
+        /* 原有样式保持不变 */
+        body {
+            font-family: 'Arial', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f0f2f5;
+            box-sizing: border-box;
+        }
+
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 24px;
+        }
+
+        .btn-group {
+            text-align: center;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s;
+            min-width: 120px;
+        }
+
+        #generateBtn {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        #generateBtn:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+            opacity: 1;
+        }
+
+        #copyBtn {
+            background-color: #2196F3;
+            color: white;
+        }
+
+        button:hover:not(:disabled) {
+            opacity: 0.9;
+            transform: scale(1.05);
+        }
+
+        .result {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 5px solid #6c63ff;
+        }
+
+        .result-item {
+            margin: 10px 0;
+            padding: 8px 0;
+            border-bottom: 1px dashed #eee;
+            display: flex;
+            align-items: center;
+        }
+
+        .result-label {
+            font-weight: bold;
+            color: #555;
+            display: inline-block;
+            width: 120px;
+            margin-right: 8px;
+        }
+
+        .result-value {
+            color: #333;
+            flex: 1;
+            word-break: break-word;
+        }
+
+        .tip {
+            color: #666;
+            text-align: center;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+
+        .cooldown {
+            color: #ff5252;
+            text-align: center;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+
+            .container {
+                padding: 20px 15px;
+            }
+
+            h1 {
+                font-size: 20px;
+                margin-bottom: 20px;
+            }
+
+            .btn-group {
+                flex-direction: column;
+                padding: 0 20px;
+            }
+
+            button {
+                width: 100%;
+                padding: 12px 0;
+                font-size: 15px;
+            }
+
+            .result-label {
+                width: 90px;
+                font-size: 14px;
+            }
+
+            .result-value {
+                font-size: 14px;
+            }
+
+            .result {
+                padding: 15px 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>蔚蓝档案转生工具</h1>
+        
+        <div class="btn-group">
+            <button id="generateBtn">一键转生</button>
+            <button id="copyBtn">复制结果</button>
+        </div>
+        
+        <div class="cooldown" id="cooldownTimer"></div>
+        
+        <div class="result" id="resultArea">
+            <p class="tip">点击上方按钮开始转生~</p>
+        </div>
+    </div>
+
+    <script>
+        // 数据池保持不变
+        const dataPool = {
+            age: ["15岁", "16岁", "17岁", "18岁", "19岁"],
+            hairColor: ["黑发", "白发", "棕发", "金发", "粉发", "蓝发"],
+            academy: ["三一综合学院", "格黑娜高等学院", "阿拜多斯高等学院", "千禧年科学学院", "红冬联邦学院", "山海经高级中学", "瓦尔基里警察学校", "百鬼夜行联合学园", "阿里乌斯分校", "srt特殊学园", "克罗斯诺学校", "狂猎艺术学院", "奥德赛海洋学校", "海兰德铁道学园"],
+            attackType: ["爆发", "贯穿", "神秘", "振动"],
+            defenseType: ["轻装甲", "重装甲", "特殊装甲", "弹性装甲"],
+            tacticType: ["坦克", "输出", "治疗", "辅助", "载具支援"],
+            weapon: ["手枪", "突击步枪", "霰弹枪", "狙击步枪", "冲锋枪", "榴弹发射器", "导弹发射器", "狙击枪", "轨道炮", "重机枪", "迫击炮", "喷火器"],
+            fieldAdaptability: ["卓越", "优秀", "良好", "普通", "不适", "红脸"],
+            streetAdaptability: ["卓越", "优秀", "良好", "普通", "不适", "红脸"],
+            indoorAdaptability: ["卓越", "优秀", "良好", "普通", "不适", "红脸"],
+            equipment: ["护符", "手表", "项链", "徽章", "发夹", "帽子", "手套", "鞋子", "背包"]
+        };
+
+        // 获取页面元素
+        const generateBtn = document.getElementById('generateBtn');
+        const copyBtn = document.getElementById('copyBtn');
+        const resultArea = document.getElementById('resultArea');
+        const cooldownTimer = document.getElementById('cooldownTimer');
+        
+        // 冷却时间设置（1小时 = 3600秒）
+        const COOLDOWN_SECONDS = 3600;
+        let cooldownInterval = null;
+
+        // 定义“普通以上”的等级
+        const aboveNormalLevels = ["卓越", "优秀", "良好", "普通"];
+        // 定义三个适应性的键名
+        const adaptabilityKeys = ['fieldAdaptability', 'streetAdaptability', 'indoorAdaptability'];
+
+        // 页面加载时检查是否有冷却时间
+        function checkCooldown() {
+            const cooldownEnd = localStorage.getItem('cooldownEnd');
+            const now = Date.now();
+            
+            if (cooldownEnd && now < cooldownEnd) {
+                // 有未完成的冷却
+                startCooldownTimer(cooldownEnd);
+            } else {
+                // 冷却已完成
+                resetCooldown();
+            }
+            
+            // 检查是否有保存的结果
+            const savedResult = localStorage.getItem('lastResult');
+            if (savedResult) {
+                try {
+                    displayResult(JSON.parse(savedResult));
+                } catch (e) {
+                    console.error('无法加载保存的结果', e);
+                }
+            }
+        }
+
+        // 开始冷却倒计时
+        function startCooldownTimer(endTime) {
+            generateBtn.disabled = true;
+            
+            // 更新倒计时显示
+            function updateTimer() {
+                const now = Date.now();
+                const remaining = Math.max(0, Math.floor((endTime - now) / 1000));
+                
+                if (remaining <= 0) {
+                    resetCooldown();
+                    clearInterval(cooldownInterval);
+                    return;
+                }
+                
+                // 格式化时间为 时:分:秒
+                const hours = Math.floor(remaining / 3600);
+                const minutes = Math.floor((remaining % 3600) / 60);
+                const seconds = remaining % 60;
+                
+                cooldownTimer.textContent = `下次转生可用时间: ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }
+            
+            // 立即更新一次
+            updateTimer();
+            // 每秒更新一次
+            cooldownInterval = setInterval(updateTimer, 1000);
+        }
+
+        // 重置冷却状态
+        function resetCooldown() {
+            generateBtn.disabled = false;
+            cooldownTimer.textContent = '';
+            if (cooldownInterval) {
+                clearInterval(cooldownInterval);
+                cooldownInterval = null;
+            }
+        }
+
+        // 随机生成结果的函数
+        function generateResult() {
+            const result = {};
+            
+            // 处理非适应性、非装备数据
+            for (const key in dataPool) {
+                if (!adaptabilityKeys.includes(key) && key !== 'equipment') {
+                    const dataList = dataPool[key];
+                    const randomIndex = Math.floor(Math.random() * dataList.length);
+                    result[key] = dataList[randomIndex];
+                }
+            }
+            
+            // 处理适应性数据
+            const adaptResult = {};
+            const targetKey = adaptabilityKeys[Math.floor(Math.random() * adaptabilityKeys.length)];
+            
+            adaptabilityKeys.forEach(key => {
+                if (key === targetKey) {
+                    const validLevels = dataPool[key].filter(level => aboveNormalLevels.includes(level));
+                    adaptResult[key] = validLevels[Math.floor(Math.random() * validLevels.length)];
+                } else {
+                    adaptResult[key] = dataPool[key][Math.floor(Math.random() * dataPool[key].length)];
+                }
+            });
+            
+            // 检查并调整卓越数量（最多1个）
+            const excellentKeys = adaptabilityKeys.filter(key => adaptResult[key] === "卓越");
+            if (excellentKeys.length > 1) {
+                const keepKey = excellentKeys[Math.floor(Math.random() * excellentKeys.length)];
+                excellentKeys.forEach(key => {
+                    if (key !== keepKey) {
+                        const nonExcellentLevels = dataPool[key].filter(level => level !== "卓越");
+                        adaptResult[key] = nonExcellentLevels[Math.floor(Math.random() * nonExcellentLevels.length)];
+                    }
+                });
+            }
+            Object.assign(result, adaptResult);
+            
+            // 处理装备数据
+            const allEquipments = [...dataPool.equipment];
+            const selectedEquipments = [];
+            while (selectedEquipments.length < 3) {
+                const randomIndex = Math.floor(Math.random() * allEquipments.length);
+                const selected = allEquipments.splice(randomIndex, 1)[0];
+                selectedEquipments.push(selected);
+            }
+            result.equipment = selectedEquipments.join('、');
+            
+            // 显示结果并保存
+            displayResult(result);
+            localStorage.setItem('lastResult', JSON.stringify(result));
+            
+            // 设置冷却时间
+            const cooldownEnd = Date.now() + COOLDOWN_SECONDS * 1000;
+            localStorage.setItem('cooldownEnd', cooldownEnd);
+            startCooldownTimer(cooldownEnd);
+        }
+
+        // 显示结果到页面的函数
+        function displayResult(result) {
+            resultArea.innerHTML = '';
+            const labels = {
+                age: "年龄",
+                hairColor: "发色",
+                academy: "学院所属",
+                attackType: "攻击类型",
+                defenseType: "防御类型",
+                tacticType: "战术类别",
+                weapon: "武器种类",
+                fieldAdaptability: "野外适应性",
+                streetAdaptability: "市街适应性",
+                indoorAdaptability: "室内适应性",
+                equipment: "装备"
+            };
+            
+            for (const key in result) {
+                const item = document.createElement('div');
+                item.className = 'result-item';
+                
+                const label = document.createElement('span');
+                label.className = 'result-label';
+                label.textContent = labels[key] + '：';
+                
+                const value = document.createElement('span');
+                value.className = 'result-value';
+                value.textContent = result[key];
+                
+                item.appendChild(label);
+                item.appendChild(value);
+                resultArea.appendChild(item);
+            }
+        }
+
+        // 复制结果函数
+        function copyResult() {
+            let text = "蔚蓝档案转生结果：\n";
+            const resultItems = document.querySelectorAll('.result-item');
+            
+            if (resultItems.length === 0) {
+                alert('请先点击"一键转生"生成结果');
+                return;
+            }
+            
+            resultItems.forEach(item => {
+                text += item.textContent + '\n';
+            });
+            
+            navigator.clipboard.writeText(text).then(() => {
+                alert('结果已复制到剪贴板！');
+            }).catch(err => {
+                console.error('复制失败：', err);
+                alert('复制失败，请手动复制');
+            });
+        }
+
+        // 绑定按钮事件
+        generateBtn.addEventListener('click', generateResult);
+        copyBtn.addEventListener('click', copyResult);
+        
+        // 页面加载时检查冷却状态
+        window.addEventListener('load', checkCooldown);
+    </script>
+</body>
+</html>
